@@ -1,0 +1,354 @@
+# This is an example file for a .lex file
+# It describes the structure of a .lex file
+# .lex files are used by the JBC (Java Based
+# Compiler) and describes the lexical structure
+# of a language.
+
+# The file begins with a single [macro] tag
+# that indicated all of the macros (in form of
+# regular expressions) used in following parts
+# of the file.
+# You can use other defined macros in a macro.
+# Any reference to a macro should be wrapped with
+# %MACRO% and '%' should be escaped to '\%'.
+
+# The format of a macro: MACRO_NAME MACRO_VALUE (in regular expression)
+# Name of a macro can start with _a-ZA-Z and composed of _a-zA-Z0-9.
+# Like this: _test_macro %_references_macro%|\%
+# where _references_macro is a already-defined macro.
+# Now we begins with a sample file that defined no macros
+
+[macro]
+
+# The second part of the file is states.
+# It begins with a single [states] tag
+# The format is here: [final] STATE_NAME STATE_VALUE
+# If there is a "final" tag there, then
+# the program will stop at reaching this state.
+
+# State name is just as the macro name, which 
+# should be unique and used in the next part
+# The state value is an unique unsigned integer
+# It can be exactly any value.
+# However, as the program begins at state 0 and ends
+# at a final state, it is strongly recommended to
+# write at least 1 final state.
+
+# Now we begins with the states definition of MScript.
+
+[states]
+
+STATE_START 0
+
+#identifier
+STATE_IDENTIFIER 1
+final IDENTIFIER 2
+
+#decimal
+STATE_DECIMAL_INTEGER 3
+STATE_DECIMAL_REAL 4
+STATE_DECINAL_EXPONENTIAL 5
+STATE_DECIMAL_EXPONENTIAL_SIGNED 6
+final DECIMAL_INTEGER 7
+final DECIMAL_REAL 8
+
+#hexadecimal
+STATE_HEX 9
+final HEX 10
+
+#octal
+STATE_OCT 11
+final OCT 12
+
+#special symbols: []
+final BRACKETS 13
+
+#assignable symbols
+STATE_PLUS 14
+final ASSIGN_PLUS 15
+final PLUS 16
+
+STATE_MINUS 17
+final ASSIGN_MINUS 18
+final MINUS 19
+
+STATE_MULTIPLY 20
+final ASSIGN_MULTIPLY 21
+final MULTIPLY 22
+
+STATE_DIVIDE 23
+final ASSIGN_DIVIDE 24
+final DIVIDE 25
+
+STATE_MOD 26
+final ASSIGN_MOD 27
+final MOD 28
+
+#bit and logical operators
+STATE_BIT_AND 29
+final LOGIGAL_AND 30
+final BIT_AND 31
+final ASSIGN_AND 32
+
+STATE_BIT_OR 33
+final LOGIGAL_OR 34
+final BIT_OR 35
+final ASSIGN_OR 36
+
+final BIT_NOT 37
+
+STATE_EXCLAMATION 38
+final LOGICAL_NOT 39
+final NOT_EQUAL 40
+
+STATE_LESS 41
+STATE_LEFT_MOVE 42
+final LESS 43
+final LESS_OR_EQUAL 44
+final LEFT_MOVE 45
+final ASSIGN_LEFT_MOVE 46
+
+STATE_MORE 41
+STATE_RIGHT_MOVE 42
+final MORE 43
+final MORE_OR_EQUAL 44
+final RIGHT_MOVE 45
+final ASSIGN_RIGHT_MOVE 46
+
+STATE_XOR 47
+final XOR 48
+final ASSIGN_XOR 49
+
+#not assignable symbols
+STATE_LEFT_BRACKET 50
+final LEFT_BRACKET 51
+final RIGHT_BRACKET 52
+final LEFT_BRACE 53
+final RIGHT_BRACE 54
+final LEFT_PARENTHESE 55
+final RIGHT_PARENTHESE 56
+
+final SEMICOLON 57
+final COMMA 58
+
+#string
+STATE_STRING 59
+STATE_STRING_SLASH 60
+final STRING 61 
+
+#char
+STATE_CHAR 62
+STATE_CHAR_SLASH 63
+STATE_CHAR_FINISHED 64
+final CHAR 65
+
+# The third part, the transformation section,
+# begins with a [transform] tag and describes how
+# the state of the lexical analyzer changed while
+# analyzing the input string and returning a token.
+# The format is like this: FROM_STATE TO_STATE REGEXP
+# FROM_STATE and TO_STATE are two state names defined
+# in the previous section. If FROM_STATE is the name
+# of a final state, then it is ignored.
+# You can include defined macros in the REGEXP given,
+# and then the macro is just replaced by its value.
+# The meaning is, that if the REGEXP matched the input
+# char (or characters), then the state is changed from
+# FROM_STATE to TO_STATE.
+
+# Here we begins this section of MScript
+
+[transform]
+
+#identifier
+STATE_START STATE_IDENTIFIER [_a-zA-Z]
+STATE_IDENTIFIER STATE_IDENTIFIER [_a-zA-Z0-9]
+STATE_IDENTIFIER IDENTIFIER (?=[^_a-ZA-Z0-9])
+
+#decimal
+STATE_START STATE_DECIMAL_INTEGER [1-9]
+STATE_DECIMAL_INTEGER STATE_DECIMAL_INTEGER [0-9]
+STATE_DECIMAL_INTEGER DECIMAL_INTEGER (?=[^0-9\.eE])
+STATE_DECIMAL_INTEGER DECIMAL_REAL \.
+STATE_DECIMAL_REAL STATE_DECIMAL_REAL [0-9]
+STATE_DECIMAL_REAL DECIMAL_REAL (?=[^0-9eE])
+STATE_DECIMAL_REAL STATE_DECIMAL_EXPONENTIAL [eE]
+STATE_EXPONENTIAL STATE_EXPONENTIAL_SIGNED [\+\-0-9]
+STATE_EXPONENTIAL_SIGNED STATE_EXPONENTIAL_SIGNED [0-9]
+STATE_EXPONENTIAL_SIGNED EXCIMAL_REAL (?=[^0-9])
+
+#hexadecimal
+STATE_OCT STATE_HEX [xX]
+STATE_HEX STATE_HEX [0-9a-fA-F]
+STATE_HEX HEX (?=[^0-9a-fA-F])
+
+#octal
+STATE_START STATE_OCT 0
+STATE_OCT STATE_OCT [0-7]
+STATE_OCT OCT (?=[0-7])
+
+#special symbols
+STATE_LEFT_BRACKET BRACKETS \]
+
+#assignable symbols
+STATE_START STATE_PLUS \+
+STATE_PLUS PLUS (?=[^=])
+STATE_PLUS ASSIGN_PLUS =
+
+STATE_START STATE_MINUS -
+STATE_MINUS MINUS (?=[^=])
+STATE_MINUS ASSIGN_MINUS =
+
+STATE_START STATE_MULTIPLY \*
+STATE_MULTIPLY MULTIPLY (?=[^=])
+STATE_MULTIPLY ASSIGN_MULTIPLY =
+
+STATE_START STATE_DIVIDE /
+STATE_DIVIDE DIVIDE (?=[^=])
+STATE_DIVIDE ASSIGN_DIVIDE =
+
+STATE_START STATE_MOD %
+STATE_MOD MOD (?=[^=])
+STATE_MOD ASSIGN_MINUS =
+
+STATE_START STATE_BIT_AND &
+STATE_BIT_AND LOGICAL_AND &
+STATE_BIT_AND ASSIGN_AND =
+STATE_BIT_AND BIT_AND (?=[^&=])
+
+STATE_START STATE_BIT_OR \|
+STATE_BIT_OR LOGICAL_OR \|
+STATE_BIT_OR ASSIGN_OR =
+STATE_BIT_OR BIT_OR (?=[^\|=])
+
+STATE_START BIT_NOT ~
+
+STATE_START STATE_EXCLAMATION !
+STATE_EXCLAMATION NOT_EQUAL =
+STATE_EXCLAMATION LOGICAL_NOT (?=[^=])
+
+STATE_START STATE_LESS <
+STATE_LESS STATE_LEFT MOVE <
+STATE_LESS LESS_OR_EQUAL =
+STATE_LEFT_MOVE ASSIGN_LEFT_MOVE =
+STATE_LEFT_MOVE LEFT_MOVE (?=[^=])
+
+STATE_START STATE_MORE >
+STATE_MORE STATE_RIGHT MOVE >
+STATE_MORE MORE_OR_EQUAL =
+STATE_RIGHT_MOVE ASSIGN_RIGHT_MOVE =
+STATE_RIGHT_MOVE RIGHT_MOVE (?=[^=])
+
+STATE_START STATE_XOR \^
+STATE_XOR ASSIGN_XOR =
+STATE_XOR XOR (?=[^=])
+
+#not assignable symbols
+STATE_START STATE_LEFT_BRACKET \[
+STATE_LEFT_BRACKET LEFT_BRACKET (?=[^\]])
+STATE_START RIGHT_BRACKET \]
+STATE_START LEFT_BRACE \{
+STATE_START RIGHT_BRACE \}
+STATE_START LEFT_PARENTHESE \(
+STATE_START RIGHT_PARENTHESE \)
+
+STATE_START SEMICOLON ;
+STATR_START COMMA ,
+
+#string
+STATE_START STATE_STRING "
+STATE_STRING STATE_STRING [^"\n\\]
+STATE_STRING STATE_STRING_SLASH \\
+STATE_STRING_SLASH STATE_STRING ["\\btnfr]
+STATE_STRING STRING "
+
+#char
+STATE_START STATE_CHAR '
+STATE_CHAR STATE_CHAR_SLASH \\
+STATE_CHAR STATE_CHAR_FINISHED [^'\\\n]
+STATE_CHAR_SLASH STATE_CHAR_FINISHED ["\\btnfr]
+STATE_CHAR_FINISHED CHAR '
+
+# The forth part is the output part.
+# Beginning with tag [output], this part defines the
+# mapping between final analyze states and lexical
+# output. Each mapping entry is in the following form:
+# FINAL_STATE_NAME ANALYZE_OUTPUT_ID ANALYZE_OUTPUT_NAME JAVA_CODE
+# In the output lexical analyzer file, The output is
+# a three-tuple with id ANALYZE_OUTPUT_ID, 
+# name ANALYZE_OUTPUT_NAME and value JAVA_CODE.
+
+# To describe it more clearly, as this program outputs
+# a java program which will analyze a source code input,
+# some output token initialization may look like this:
+# new Token(id, name, value);
+# In fact, as you may want to do something before the 
+# raw matched String is written to the value part,
+# the JAVA_CODE parameter is copied into the initialization
+# code so that you can deal with it.
+# The raw matched String is the parameter matched.
+# More usually, the JAVA_CODE is like 
+# "Some_custom_class.some_custom_function(matched)"
+# where the function is used to handle the String input.
+# You can also write "null" in JAVA_CODE so that there is
+# no value.
+
+# Be careful that you can use not only same output IDs and
+# same output names -- if you know what you're doing.
+
+# So let's begin with this part of MScript!
+
+[output]
+
+IDENTIFIER 1 IDENTIFIER matched
+
+DECIMAL_INTEGER 2 INTEGER com.std4453.mscript.MScriptOutputHandler.handleOutputDecimalInteger(matched)
+DECIMAL_REAL 3 REAL com.std4453.mscript.MScriptOutputHandler.handleOutputDecimalReal(matched)
+HEX 2 INTEGER com.std4453.mscript.MScriptOutputHandler.handleOutputHexadecimal(matched)
+OCT 2 INTEGER com.std4453.mscript.MScriptOutputHandler.handleOutputOctal(matched)
+
+BRACKETS 4 BRACKETS null
+ASSIGN_PLUS 5 ASSIGN_PLUS null
+PLUS 6 PLUS null
+ASSIGN_MINUS 7 ASSIGN_MINUS null
+MINUS 8 MINUS null
+ASSIGN_MULTIPLY 9 ASSIGN_MULTIPLY null
+MULTIPLY 10 MULTIPLY null
+ASSIGN_DIVIDE 11 ASSIGN_DIVIDE null
+DIVIDE 12 DIVIDE null
+ASSIGN_MOD 13 ASSIGN_MOD null
+MOD 14 MOD null
+
+LOGICAL_AND 15 LOGICAL_AND null
+BIT_AND 16 BIT_AND null
+ASSIGN_AND 17 ASSIGN_AND null
+LOGICAL_OR 18 LOGICAL_OR null
+BIT_OR 19 BIT_OR null
+ASSIGN_OR 20 ASSIGN_OR null
+BIT_NOT 21 BIT_NOT null
+LOGICAL_NOT 22 LOGICAL_NOT null
+NOT_EQUAL 23 NOT_EQUAL null
+
+LESS 24 LESS null
+LESS_OR_EQUAL 25 LESS_OR_EQUAL null
+LEFT_MOVE 26 LEFT_MOVE null
+ASSIGN_LEFT_MOVE 27 ASSIGN_LEFT_MOVE null
+MORE 28 MORE null
+MORE_OR_EQUAL 29 MORE_OR_EQUAL null
+RIGHT_MOVE 30 RIGHT_MOVE null
+ASSIGN_RIGHT_MOVE 31 ASSIGN_RIGHT_MOVE null
+XOR 32 XOR null
+ASSIGN_XOR 33 ASSIGN_XOR null
+
+LEFT_BRACKET 34 LEFT_BRACKET null
+RIGHT_BRACKET 35 RIGHT_BRACKET null
+LEFT_BRACE 36 LEFT_BRACE null
+RIGHT_BRACE 37 RIGHT_BRACE null
+LEFT_PARENTHESE 38 LEFT_PARENTHESE null
+RIGHT_PARENTHESE 39 RIGHT_PARENTHESE null
+
+SEMICOLON 40 SEMICOLON null
+COMMA 41 COMMA null
+
+STRING 42 STRING com.std4453.mscript.MScriptOutputHandler.handleOutputString(matched)
+CHAR 43 CHAR com.std4453.mscript.MScriptOutputHandler.handleOutputChar(matched)
