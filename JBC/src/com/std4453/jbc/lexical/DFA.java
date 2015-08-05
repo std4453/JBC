@@ -9,6 +9,13 @@ public class DFA {
 		private Interval edgesOutInterval;
 	}
 	
+	private DFADataPool dataPool;
+	
+	private int startStateId;
+	private int endStateId;
+	
+	private Interval statesInterval;
+	
 	public DFA() {
 		
 	}
