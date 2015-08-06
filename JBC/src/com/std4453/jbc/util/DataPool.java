@@ -69,8 +69,8 @@ public class DataPool<T> {
 		public T getElement(int index) {
 			return super.getElement(data, index);
 		}
-		
-		public void setElement(int index,T element) {
+
+		public void setElement(int index, T element) {
 			super.setElement(data, index, element);
 		}
 	}
@@ -254,10 +254,11 @@ public class DataPool<T> {
 				DataPoolInterval<T> interval = new DataPoolInterval<T>(unitId
 						* startUnitSize * (1 << level), unitId * startUnitSize
 						* (1 << level) + size, data[level]);
-				
-				for (int i=0;i<size;++i)
-					interval.setElement(i,null);
-				
+
+				for (int i = 0; i < size; ++i)
+					interval.setElement(i, null);
+
+				allocatedCount[level]++;
 				allocated[level][unitId] = true;
 				intervals[level][unitId] = interval;
 
@@ -268,16 +269,27 @@ public class DataPool<T> {
 		return null;
 	}
 
+	private int getLength(DataPoolInterval<T> interval) {
+		T[] data = interval.getData();
+		if (this.largeArrays.contains(data))
+			return data.length;
+		else
+			for (int i = 0; i < cacheLevels; ++i)
+				if (data == this.data[i])
+					return startUnitSize * (1 << i);
+		return 0;
+	}
+
 	public void allocateMore(DataPoolInterval<T> interval, int size) {
 		if (interval == null || size <= 0)
 			return;
-
+		
 		int level = getLevel(interval);
 		if (level == -1)
 			return;
 
 		T[] array = interval.getData();
-		int length = array.length;
+		int length = getLength(interval);
 		int count = interval.count();
 
 		if (level == cacheLevels) {
@@ -297,11 +309,13 @@ public class DataPool<T> {
 						/ (1 << level);
 
 				DataPoolInterval<T> newInterval = allocate(newLength);
-				System.arraycopy(array, 0, newInterval.getData(), 0, count);
+				System.arraycopy(array, interval.getStart(),
+						newInterval.getData(), newInterval.getStart(), count);
 				interval.setData(newInterval.getData());
 				interval.setStart(newInterval.getStart());
 				interval.setEnd(newInterval.getEnd());
 
+				allocatedCount[level]--;
 				allocated[level][oldUnitId] = false;
 				intervals[level][oldUnitId] = null;
 
@@ -310,9 +324,12 @@ public class DataPool<T> {
 					largeIntervals.set(largeIntervals.indexOf(newInterval),
 							interval);
 				} else {
+					allocatedCount[newLevel]++;
 					intervals[newLevel][newInterval.getStart() / startUnitSize
 							/ (1 << newLevel)] = interval;
 				}
+			}else {
+				interval.setEnd(interval.getEnd()+size);
 			}
 		}
 	}
@@ -337,7 +354,7 @@ public class DataPool<T> {
 		if (largeArrays.contains(interval))
 			return cacheLevels;
 
-		int count = interval.getData().length;
+		int count = getLength(interval);
 		if (count % startUnitSize != 0)
 			return -1;
 		count /= startUnitSize;

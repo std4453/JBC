@@ -1,7 +1,5 @@
 package com.std4453.jbc.lexical;
 
-import java.util.regex.Pattern;
-
 import com.std4453.jbc.util.DataPool.DataPoolInterval;
 
 public class DFA {

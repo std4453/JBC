@@ -34,6 +34,7 @@ public class Regexp {
 
 	private Regexp(char availableChar) {
 		this.rule = Rule.LEAF;
+		this.availableChar = availableChar;
 		this.children = null;
 	}
 
@@ -75,6 +76,17 @@ public class Regexp {
 		children.setElement(children.count() - 1, child);
 	}
 
+	public boolean matches(String input) {
+		return matches(input, 0) == input.length();
+	}
+
+	public String matchPartly(String input) {
+		int matched = matches(input, 0);
+		if (matched < 0)
+			return "";
+		return input.substring(0, matched);
+	}
+
 	public int matches(String input, int index) {
 		switch (this.rule) {
 		case ANY_OR_NONE:
@@ -112,8 +124,8 @@ public class Regexp {
 			else
 				return matched;
 		case LEAF:
-			return availableChar == 0 ? 0
-					: input.charAt(index) == availableChar ? 1 : -1;
+			return input.length() > index ? availableChar == 0 ? 0 : input
+					.charAt(index) == availableChar ? 1 : -1 : -1;
 		case MORE_THAN_ZERO:
 			if (this.children.count() < 1)
 				return -1;
@@ -131,12 +143,13 @@ public class Regexp {
 				return pointer - index;
 			}
 		case OR:
+			int max = -1;
 			for (Regexp regexp : this.children) {
 				matched = regexp.matches(input, index);
-				if (matched >= 0)
-					return matched;
+				if (matched >= 0 && matched > max)
+					max = matched;
 			}
-			return -1;
+			return max;
 		default:
 			return -1;
 		}
@@ -159,7 +172,7 @@ public class Regexp {
 			} else if (ch == '(' && !afterSlash) {
 				Pair<Regexp, Integer> pair = compile(input, i + 1, true);
 				data.addChild(pair.getLeft());
-				i = right;
+				i = pair.getRight();
 			} else if (ch == ')' && !afterSlash) {
 				if (fromBracket) {
 					right = i;
@@ -182,6 +195,7 @@ public class Regexp {
 				}
 				Regexp tmp = new Regexp(Rule.ANY_OR_NONE);
 				tmp.addChild(rootChildren.getElement(rootChildren.count() - 1));
+				rootChildren.setElement(rootChildren.count() - 1, tmp);
 			} else if (ch == '+' && !afterSlash) {
 				DataPoolInterval<Regexp> rootChildren = data.getChildren();
 				if (rootChildren.count() < 1) {
@@ -189,16 +203,22 @@ public class Regexp {
 				}
 				Regexp tmp = new Regexp(Rule.MORE_THAN_ZERO);
 				tmp.addChild(rootChildren.getElement(rootChildren.count() - 1));
+				rootChildren.setElement(rootChildren.count() - 1, tmp);
 			} else if (ch == '|' && !afterSlash) {
 				DataPoolInterval<Regexp> rootChildren = data.getChildren();
 				if (rootChildren.count() < 1) {
 					logError(input, i, "'|' must be after a token!");
 				}
-				Regexp tmp = new Regexp(Rule.AND);
-				for (Regexp regexp : rootChildren)
-					tmp.addChild(regexp);
+
+				if (rootChildren.count() == 1) {
+					ret.addChild(rootChildren.getElement(0));
+				} else {
+					Regexp tmp = new Regexp(Rule.AND);
+					for (Regexp regexp : rootChildren)
+						tmp.addChild(regexp);
+					ret.addChild(tmp);
+				}
 				rootChildren.setEnd(rootChildren.getStart());
-				ret.addChild(tmp);
 			} else if (afterSlash) {
 				if (escapedCharacters.containsKey(ch)) {
 					data.addChild(new Regexp(escapedCharacters.get(ch)));
@@ -215,11 +235,16 @@ public class Regexp {
 			if (data.getChildren().count() < 1) {
 				logError(input, input.length(), "Expected token(s) after '|'!");
 			}
-			Regexp tmp = new Regexp(Rule.AND);
-			for (Regexp regexp : data.getChildren())
-				tmp.addChild(regexp);
-			ret.addChild(tmp);
+			if (data.getChildren().count() > 1) {
+				Regexp tmp = new Regexp(Rule.AND);
+				for (Regexp regexp : data.getChildren())
+					tmp.addChild(regexp);
+				ret.addChild(tmp);
+			} else {
+				ret.addChild(data.getChildren().getElement(0));
+			}
 			ret.setRule(Rule.OR);
+			data.getChildren().setEnd(data.getChildren().getStart());
 		} else {
 			if (data.getChildren().count() < 1) {
 				logError(input, input.length(), "Input length can't be zero!");
@@ -227,7 +252,9 @@ public class Regexp {
 			ret.setRule(Rule.AND);
 			for (Regexp regexp : data.getChildren())
 				ret.addChild(regexp);
+			data.getChildren().setEnd(data.getChildren().getStart());
 		}
+		data.release();
 		return new Pair<>(ret, right);
 	}
 
@@ -240,9 +267,62 @@ public class Regexp {
 				"Parse Exception near character '%s' near index %d:%s\n%s\n%s",
 				input.charAt(index), index, msg, input, sb.toString()));
 	}
-	
+
+	public void release() {
+		if (this.children != null) {
+			for (Regexp regexp : children)
+				regexp.release();
+			regexpPool.release(children);
+		}
+	}
+
 	public static void main(String[] args) {
-		Runtime.getRuntime().traceInstructions(true);
-		compile("a|b");
+		String pattern = "a(a+|(b*a?bb)\\)?)";
+		String[] tests = new String[] { "abbbbbbbabb)", "abbbbbbbbbbbb", "aa",
+				"aaa", "aaaaaa", "aabb", "abb)","aa)",")","ababbb" };
+		System.out.println("The pattern is " + pattern);
+		System.out.println();
+		System.out.println("The compiles pattern is:");
+		Regexp regexp = compile(pattern);
+		System.out.println(regexp);
+		System.out.println();
+		System.out.println("Matching tests:");
+		for (String test : tests) {
+			System.out.println(test
+					+ (regexp.matches(test) ? " matches" : " doesn't match")
+					+ " with " + pattern);
+		}
+		regexp.release();
+	}
+
+	public String toString() {
+		return toString(new StringBuilder()).toString();
+	}
+
+	private StringBuilder toString(StringBuilder sb) {
+		return toString(sb, 0);
+	}
+
+	private StringBuilder toString(StringBuilder sb, int level) {
+		for (int i = 0; i < level; ++i)
+			sb.append("\t");
+		sb.append("Regexp{rule=Rule." + rule);
+		if (rule == Rule.LEAF)
+			sb.append(", ch=" + availableChar + " (0x"
+					+ Integer.toHexString(availableChar) + ")}");
+		else {
+			sb.append(", children=[\n");
+			for (Regexp regexp : this.children) {
+				regexp.toString(sb, level + 1);
+				if (regexp != this.children
+						.getElement(this.children.count() - 1))
+					sb.append(",");
+				sb.append("\n");
+			}
+			for (int i = 0; i < level; ++i)
+				sb.append("\t");
+			sb.append("]}");
+		}
+		return sb;
 	}
 }

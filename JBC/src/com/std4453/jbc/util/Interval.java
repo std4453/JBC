@@ -75,12 +75,11 @@ public class Interval implements Cloneable {
 		if (values == null)
 			return false;
 
-		// XXX: maybe a bit slow.
-		return !intersection(new Interval(0, values.length)).isEmpty();
+		return this.start>=0&&this.end<=values.length;
 	}
 
 	public boolean checkBounds(int index) {
-		return this.start <= index && this.end > index;
+		return 0 <= index && this.count() > index;
 	}
 
 	public <T> Iterator<T> iterator(T[] values) {
