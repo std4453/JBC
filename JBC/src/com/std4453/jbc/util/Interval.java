@@ -79,6 +79,10 @@ public class Interval implements Cloneable {
 		return !intersection(new Interval(0, values.length)).isEmpty();
 	}
 
+	public boolean checkBounds(int index) {
+		return this.start <= index && this.end > index;
+	}
+
 	public <T> Iterator<T> iterator(T[] values) {
 		if (!checkBounds(values))
 			return null;
@@ -112,8 +116,17 @@ public class Interval implements Cloneable {
 	}
 
 	public <T> T getElement(T[] array, int index) {
-		if (!checkBounds(array))
+		if (!checkBounds(array)||!checkBounds(index))
 			return null;
 		return array[start + index];
+	}
+
+	public <T> void setElement(T[] array, int index, T element) {
+		if (checkBounds(array)&&checkBounds(index))
+			array[start + index] = element;
+	}
+
+	public int getIndex(int index) {
+		return index + start;
 	}
 }

@@ -69,6 +69,10 @@ public class DataPool<T> {
 		public T getElement(int index) {
 			return super.getElement(data, index);
 		}
+		
+		public void setElement(int index,T element) {
+			super.setElement(data, index, element);
+		}
 	}
 
 	private Class<T> clazz;
@@ -250,6 +254,10 @@ public class DataPool<T> {
 				DataPoolInterval<T> interval = new DataPoolInterval<T>(unitId
 						* startUnitSize * (1 << level), unitId * startUnitSize
 						* (1 << level) + size, data[level]);
+				
+				for (int i=0;i<size;++i)
+					interval.setElement(i,null);
+				
 				allocated[level][unitId] = true;
 				intervals[level][unitId] = interval;
 
