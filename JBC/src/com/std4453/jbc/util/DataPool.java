@@ -1,10 +1,8 @@
-package com.std4453.jbc.lexical;
+package com.std4453.jbc.util;
 
 import java.lang.reflect.Array;
 import java.util.Iterator;
 import java.util.Vector;
-
-import com.std4453.jbc.util.Interval;
 
 public class DataPool<T> {
 	public static class DataPoolInterval<T> extends Interval implements
@@ -66,6 +64,10 @@ public class DataPool<T> {
 
 		public void setData(T[] data) {
 			this.data = data;
+		}
+
+		public T getElement(int index) {
+			return super.getElement(data, index);
 		}
 	}
 
@@ -181,19 +183,19 @@ public class DataPool<T> {
 						.setEnd(tmpAllocatedCount * levelUnitSize);
 			}
 		}
-		
-		for (int i=0;i<largeArrays.size();++i) {
-			T[] array=largeArrays.get(i);
-			DataPoolInterval<T> interval=largeIntervals.get(i);
-			int count=interval.count();
+
+		for (int i = 0; i < largeArrays.size(); ++i) {
+			T[] array = largeArrays.get(i);
+			DataPoolInterval<T> interval = largeIntervals.get(i);
+			int count = interval.count();
 			int newLength;
-			
-			if ((newLength=nearest2Power(count))<array.length) {
-				T[] newArray=createTArray(newLength);
+
+			if ((newLength = nearest2Power(count)) < array.length) {
+				T[] newArray = createTArray(newLength);
 				System.arraycopy(array, 0, newArray, 0, array.length);
-				
+
 				interval.setData(newArray);
-				largeArrays.set(i,newArray);
+				largeArrays.set(i, newArray);
 			}
 		}
 	}

@@ -110,4 +110,10 @@ public class Interval implements Cloneable {
 	public void setEnd(int end) {
 		this.end = end;
 	}
+
+	public <T> T getElement(T[] array, int index) {
+		if (!checkBounds(array))
+			return null;
+		return array[start + index];
+	}
 }

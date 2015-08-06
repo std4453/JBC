@@ -1,6 +1,7 @@
 package com.std4453.jbc.lexical;
 
-import java.util.Vector;
+import com.std4453.jbc.lexical.DFA.State;
+import com.std4453.jbc.util.DataPool;
 
 public class DFADataPool {
 	private static DFADataPool instance;
@@ -12,8 +13,13 @@ public class DFADataPool {
 		return instance;
 	}
 
-	private DFA.State[] statesPool;
+	protected DataPool<State> stagesPool;
 
 	protected DFADataPool() {
+		this.stagesPool=new DataPool<DFA.State>(State.class, 4, 5, 128);
+	}
+
+	public DataPool<State> getStagesPool() {
+		return stagesPool;
 	}
 }
