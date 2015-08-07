@@ -1,6 +1,10 @@
 package com.std4453.jbc.lexical;
 
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.Vector;
 
 import com.std4453.jbc.util.DataPool.DataPoolInterval;
 
@@ -33,6 +37,11 @@ public class DFA {
 
 		public void setEdgesOutInterval(DataPoolInterval<Edge> edgesOutInterval) {
 			this.edgesOutInterval = edgesOutInterval;
+		}
+
+		@Override
+		public String toString() {
+			return String.format("State{id=%d}", id);
 		}
 	}
 
@@ -135,7 +144,7 @@ public class DFA {
 
 	public static DFA mergeDFAAnd(List<DFA> dfas) {
 		DFA ret = new DFA();
-		
+
 		int currentOffset = 2;
 		for (DFA dfa : dfas) {
 			for (int i = 0; i < dfa.statesCount(); ++i) {
@@ -173,10 +182,10 @@ public class DFA {
 				for (Edge edge : state.getEdgesOutInterval())
 					ret.addEdge(currentOffset + edge.getInStageId(),
 							currentOffset + edge.getOutStasgeId(), edge.getCh());
-			
+
 			ret.addEdge(0, currentOffset, (char) 0);
 			ret.addEdge(currentOffset + 1, 1, (char) 0);
-			
+
 			currentOffset += dfa.statesCount();
 		}
 
@@ -222,7 +231,7 @@ public class DFA {
 						"\t\tEdge{fromId=%d, toId=%d, ch=%s (0x%s)}%s\n",
 						edge.inStageId,
 						edge.outStasgeId,
-						edge.ch,
+						edge.ch==0?"\\x00":edge.ch,
 						Integer.toHexString(edge.ch),
 						state == getState(statesCount() - 1)
 								&& edge == state.getEdgesOutInterval()
@@ -244,7 +253,7 @@ public class DFA {
 						"\t\t\tEdge{fromId=%d, toId=%d, ch=%s (0x%s)}%s\n",
 						edge.inStageId,
 						edge.outStasgeId,
-						edge.ch,
+						edge.ch==0?"\\x00":edge.ch,
 						Integer.toHexString(edge.ch),
 						edge == state.getEdgesOutInterval().getElement(
 								state.getEdgesOutInterval().count() - 1) ? ""
@@ -260,33 +269,139 @@ public class DFA {
 	private StringBuilder toStringTable(StringBuilder sb) {
 		int statesCount = statesCount();
 
-		sb.append("statesCount="+statesCount+"\n");
-		
+		sb.append("statesCount=" + statesCount + "\n");
+
 		boolean[][] relations = new boolean[statesCount][];
 		for (int i = 0; i < statesCount; ++i)
 			relations[i] = new boolean[statesCount];
 
 		for (State state : this.statesInterval)
 			for (Edge edge : state.getEdgesOutInterval())
-				relations[edge.inStageId][edge.outStasgeId]=true;
+				relations[edge.inStageId][edge.outStasgeId] = true;
 
 		sb.append("  ");
-		for (int i=0;i<statesCount;++i) {
-			String istr=String.valueOf(i);
-			sb.append(istr.substring(istr.length()-1));
+		for (int i = 0; i < statesCount; ++i) {
+			String istr = String.valueOf(i);
+			sb.append(istr.substring(istr.length() - 1));
 			sb.append(" ");
 		}
 		sb.append("\n");
-		for (int i=0;i<statesCount;++i) {
-			String istr=String.valueOf(i);
-			sb.append(istr.substring(istr.length()-1));
+		for (int i = 0; i < statesCount; ++i) {
+			String istr = String.valueOf(i);
+			sb.append(istr.substring(istr.length() - 1));
 			sb.append(" ");
-			for (int j=0;j<statesCount;++j) {
-				sb.append(relations[j][i]?"+ ":"- ");
+			for (int j = 0; j < statesCount; ++j) {
+				sb.append(relations[j][i] ? "+ " : "- ");
 			}
 			sb.append("\n");
 		}
-		
+
 		return sb;
+	}
+
+	private static void x_closureOf(DFA dfa, Set<State> states, char x) {
+		if (x == (char) 0) {
+			int lastSize = 0;
+			while (states.size() - lastSize > 0) {
+				lastSize = states.size();
+				Set<State> copy = new HashSet<>(states);
+				for (State startState : copy) {
+					for (Edge edge : startState.getEdgesOutInterval()) {
+						State newState = dfa.getState(edge.getOutStasgeId());
+						if (edge.getCh() == x && !states.contains(newState)) {
+							states.add(newState);
+						}
+					}
+				}
+			}
+		} else {
+			x_closureOf(dfa, states, (char) 0);
+			Set<State> copy = new HashSet<>(states);
+			states.clear();
+			for (State state : copy)
+				for (Edge edge : state.getEdgesOutInterval()) {
+					State newState = dfa.getState(edge.getOutStasgeId());
+					if (edge.getCh() == x && !states.contains(newState)) {
+						states.add(newState);
+					}
+				}
+			x_closureOf(dfa, states, (char) 0);
+		}
+	}
+
+	public static DFA determinize(DFA dfa) {
+		Set<Character> characters = new HashSet<Character>();
+
+		for (State state : dfa.statesInterval)
+			for (Edge edge : state.getEdgesOutInterval())
+				if (edge.ch != (char) 0)
+					characters.add(edge.ch);
+
+		int delta = 1;
+		List<Set<State>> determinizedSets = new Vector<>();
+		List<int[]> transfers = new Vector<>();
+		Set<State> set = new HashSet<State>();
+		set.add(dfa.getState(0));
+		x_closureOf(dfa, set, (char) 0);
+		determinizedSets.add(set);
+		int lastPointer = 0;
+
+		while (delta > 0) {
+			delta = 0;
+			int lastSize = determinizedSets.size();
+			for (int i = lastPointer; i < lastSize; ++i) {
+				transfers.add(new int[characters.size()]);
+
+				set = determinizedSets.get(i);
+				Set<State> newSet;
+
+				int index = 0;
+				for (char ch : characters) {
+					newSet = new HashSet<>(set);
+					x_closureOf(dfa, newSet, ch);
+
+					System.out.println(i + " " + ch);
+					System.out.println(Arrays.toString(newSet.toArray()));
+
+					if (!determinizedSets.contains(newSet)) {
+						determinizedSets.add(newSet);
+						++delta;
+
+						transfers.get(i)[index] = newSet.isEmpty() ? -1
+								: (determinizedSets.size() - 1);
+					} else {
+						transfers.get(i)[index] = newSet.isEmpty() ? -1
+								: determinizedSets.indexOf(newSet);
+					}
+
+					++index;
+				}
+			}
+			lastPointer = lastSize;
+		}
+
+		DFA ret = new DFA();
+
+		for (int i = 1; i < determinizedSets.size(); ++i)
+			ret.addState();
+
+		Object[] charactersArray = characters.toArray();
+		for (int j = 0; j < characters.size(); ++j)
+			if (transfers.get(0)[j] != -1)
+				ret.addEdge(0, transfers.get(0)[j] == 0 ? 0
+						: (transfers.get(0)[j] + 1), (char) charactersArray[j]);
+
+		for (int i = 1; i < determinizedSets.size(); ++i) {
+			for (int j = 0; j < characters.size(); ++j)
+				if (transfers.get(i)[j] != -1)
+					ret.addEdge(i + 1, transfers.get(i)[j] == 0 ? 0
+							: (transfers.get(i)[j] + 1),
+							(char) charactersArray[j]);
+
+			if (determinizedSets.get(i).contains(dfa.getState(1)))
+				ret.addEdge(i == 0 ? 0 : (i + 1), 1, (char) 0);
+		}
+
+		return ret;
 	}
 }

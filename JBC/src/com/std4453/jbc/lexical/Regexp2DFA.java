@@ -53,11 +53,14 @@ public class Regexp2DFA {
 	private static DFA mergeDFAOr(List<DFA> dfas) {
 		return DFA.mergeDFAOr(dfas);
 	}
-	
+
 	public static void main(String[] args) {
-		Regexp regexp=Regexp.compile("a(a+|(b*a?bb)\\)?)");
+		String pattern = "a(a+|(b*a?bb)\\)?)";
+		Regexp regexp = Regexp.compile(pattern);
 		System.out.println(regexp);
-		DFA dfa=regexp2DFA(regexp);
+		DFA dfa = regexp2DFA(regexp);
+		System.out.println(dfa);
+		dfa = DFA.determinize(dfa);
 		System.out.println(dfa);
 	}
 }
