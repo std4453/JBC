@@ -23,7 +23,7 @@ public class Regexp {
 		escapedCharacters.put('t', '\t');
 	}
 
-	private static enum Rule {
+	public static enum Rule {
 		LEAF, OR, AND, HAS_OR_NOT, MORE_THAN_ZERO, ANY_OR_NONE;
 	}
 
